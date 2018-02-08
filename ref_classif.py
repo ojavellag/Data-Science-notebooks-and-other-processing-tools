@@ -379,5 +379,5 @@ site3 = organize_output(get_DemogrAndScans(subjects_by_site[2],Study_path, Extra
 site4 = organize_output(get_DemogrAndScans(subjects_by_site[3],Study_path, ExtraInfo))
 site5 = organize_output(get_DemogrAndScans(subjects_by_site[4],Study_path, ExtraInfo))
 
-"""Organized dataframe list to build the statistical table of Filling_SPINS_table.py"""
+"""Organized dataframe list to build the statistical table of tableCreator.py"""
 SitesInfo =[site1,site2,site3,site4,site5]
