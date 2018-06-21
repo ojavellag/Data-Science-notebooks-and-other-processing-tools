@@ -1,0 +1,127 @@
+library(tidyverse)
+library(tidytext)
+library(glue)
+library(stringr)
+wd <- getwd()
+files <- list.files("./R_stuff/Data/StateOfNation/")
+files
+fileName<- glue("./R_stuff/Data/StateOfNation/",files[4],sep = "")
+wd
+#removing spaces
+fileName <- trimws(fileName)
+
+#reading the preprocessed file
+fileText <- glue(read_file(fileName))
+
+#removing "$ sign"
+fileText <- gsub("//$", "", fileText)
+
+#Initial tokenization:
+tokens <- data_frame(text= fileText) %>% unnest_tokens(word,text)
+
+#Let's get the sentiment analysis, comparing the tokens against those of Bing Liu's study
+
+tokens %>% 
+inner_join(get_sentiments("bing")) %>%
+count(sentiment) %>% # Number of positive/Negative words in Bing's study
+spread(sentiment, n, fill=0) %>%
+
+#get the sentiment words in a table
+mutate(sentiment = positive-negative)
+
+
+# write a function that takes the name of a file and returns the # of postive
+# sentiment words, negative sentiment words, the difference & the normalized difference
+
+#########################################
+# creating a function with the same content
+#but only passing the filename
+#########################################
+
+getSentiment <- function(file){
+
+fileName<- glue("./R_stuff/Data/StateOfNation/",file,sep = "")
+wd
+#removing spaces
+fileName <- trimws(fileName)
+
+#reading the preprocessed file
+fileText <- glue(read_file(fileName))
+
+#removing "$ sign"
+fileText <- gsub("//$", "", fileText)
+
+#Initial tokenization:
+tokens <- data_frame(text= fileText) %>% unnest_tokens(word,text)
+
+#Let's get the sentiment analysis, comparing the tokens against those of Bing Liu's study
+
+sentiment <- tokens %>% 
+inner_join(get_sentiments("bing")) %>%
+count(sentiment) %>% # Number of positive/Negative words in Bing's study
+spread(sentiment, n, fill=0) %>%
+
+#get the number of sentiment words in a table
+mutate(sentiment = positive-negative) %>%
+mutate(file = file) %>%
+mutate(year = as.numeric(str_match(file,"\\d{4}"))) %>%
+mutate(president = str_match(file,"(.*?)_")[2])
+
+return(sentiment)
+}
+
+getSentiment(files[21])
+
+## applying the function over each file in the "files" array
+
+sentiments <- data_frame()
+
+for(j in files){
+sentiments <- rbind(sentiments, getSentiment(j))
+}
+
+
+
+## Let's now disambiguate the two cacorros bush, the cucho and the recucho 
+
+bCucho <- sentiments %>%
+filter(president == "Bush")%>%
+filter(year < 2000) %>%
+mutate(president = "bReCuchoCacorro")
+
+sentiments <- anti_join(sentiments, sentiments[sentiments$president == "Bush" & sentiments$year<2000, ])
+sentiments <- full_join(sentiments,bCucho)
+
+summary(sentiments)
+
+#############################################################################
+## Let's now visualize the results of our work
+
+ggplot(sentiments,aes(x =as.numeric(year), y = sentiment)) + 
+geom_point(aes(color = president))+
+geom_smooth(method =  "auto")
+
+#Notch plots
+
+ggplot(sentiments, aes(x= president, y= sentiment, color = president))+
+geom_boxplot()
+
+
+#Final Part: How is the sentiment segregated by party
+
+democrats<-sentiments %>%
+filter(president == c("Clinton","Obama"))%>%
+mutate(partu = "D")
+
+republicans<-sentiments %>%
+filter(president != "Clinton" & president!="Obama")%>%
+mutate(party = "R")
+
+#joining the resulting table
+
+byParty <- full_join(democrats,republicans)
+
+t.test(democrats$sentiment,republicans$sentiment)
+
+ggplot(byParty, aes(x = party, y = sentiment, color = party))+
+geom_boxplot()+geom_point()
